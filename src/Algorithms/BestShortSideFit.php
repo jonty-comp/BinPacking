@@ -3,7 +3,6 @@
 namespace BinPacking\Algorithms;
 
 use BinPacking\{RectangleBinPack, Rectangle};
-use BinPacking\Helpers\RectangleFactory;
 use BinPacking\Helpers\RectangleHelper;
 
 class BestShortSideFit
@@ -18,41 +17,62 @@ class BestShortSideFit
         $bestLongSideFit = RectangleHelper::MAXINT;
         $bestShortSideFit = RectangleHelper::MAXINT;
 
-        foreach ($bin->getFreeRectangles() as $freeRect) {
-            if ($freeRect->getWidth() >= $rectangle->getWidth() && $freeRect->getHeight() >= $rectangle->getHeight()) {
-                $leftoverHoriz = abs($freeRect->getWidth() - $rectangle->getWidth());
-                $leftoverVert = abs($freeRect->getHeight() - $rectangle->getHeight());
+        $rectW = $rectangle->width;
+        $rectH = $rectangle->height;
+        $flipAllowed = $bin->allowFlip;
+
+        foreach ($bin->freeRectangles as $freeRect) {
+            $rotate = false;
+            $freeW = $freeRect->width;
+            $freeH = $freeRect->height;
+
+            if ($freeW >= $rectW && $freeH >= $rectH) {
+                $leftoverHoriz = $freeW - $rectW;
+                $leftoverVert = $freeH - $rectH;
                 $shortSideFit = min($leftoverHoriz, $leftoverVert);
                 $longSideFit = max($leftoverHoriz, $leftoverVert);
 
                 if ($shortSideFit < $bestShortSideFit || ($shortSideFit == $bestShortSideFit && $longSideFit < $bestLongSideFit)) {
-                    $bestNode = RectangleFactory::fromRectangle($rectangle);
-                    $bestNode->setX($freeRect->getX());
-                    $bestNode->setY($freeRect->getY());
+                    $bestNode = [$rectW, $rectH, $freeRect->xPos, $freeRect->yPos];
 
                     $bestShortSideFit = $shortSideFit;
                     $bestLongSideFit = $longSideFit;
                 }
             }
 
-            if ($bin->isFlipAllowed() && $freeRect->getWidth() >= $rectangle->getHeight() && $freeRect->getHeight() >= $rectangle->getWidth()) {
-                $leftoverHoriz = abs($freeRect->getWidth() - $rectangle->getHeight());
-                $leftoverVert = abs($freeRect->getHeight() - $rectangle->getWidth());
+            if ($flipAllowed && $freeW >= $rectH && $freeH >= $rectW) {
+                $leftoverHoriz = $freeW - $rectH;
+                $leftoverVert = $freeH - $rectW;
                 $shortSideFit = min($leftoverHoriz, $leftoverVert);
                 $longSideFit = max($leftoverHoriz, $leftoverVert);
 
                 if ($shortSideFit < $bestShortSideFit || ($shortSideFit == $bestShortSideFit && $longSideFit < $bestLongSideFit)) {
-                    $bestNode = RectangleFactory::fromRectangle($rectangle);
-                    $bestNode->setX($freeRect->getX());
-                    $bestNode->setY($freeRect->getY());
-                    $bestNode->rotate();
-                             
+                    $bestNode = [$rectW, $rectH, $freeRect->xPos, $freeRect->yPos];
+                    $rotate = true;
+
                     $bestShortSideFit = $shortSideFit;
                     $bestLongSideFit = $longSideFit;
                 }
             }
         }
 
-        return $bestNode;
+
+        if ($bestNode) {
+            $bestRect = clone $rectangle;
+
+            $bestRect->width = $bestNode[0];
+            $bestRect->height = $bestNode[1];
+
+            $bestRect->xPos = $bestNode[2];
+            $bestRect->yPos = $bestNode[3];
+
+            if ($rotate) {
+                $bestRect->rotate();
+            }
+
+            return $bestRect;
+        }
+
+        return null;
     }
 }

@@ -32,10 +32,10 @@ class VisualisationHelper
         $draw->setStrokeDashOffset(5);
 
         foreach ($bin->getUsedRectangles() as $rect) {
-            $topLeftX = $margin + $rect->getX();
-            $topLeftY = $margin + $bin->getBinHeight() - $rect->getY() - $rect->getHeight();
-            $bottomRightX = $topLeftX + $rect->getWidth();
-            $bottomRightY = $topLeftY + $rect->getHeight();
+            $topLeftX = $margin + $rect->xPos;
+            $topLeftY = $margin + $bin->getBinHeight() - $rect->yPos - $rect->height;
+            $bottomRightX = $topLeftX + $rect->width;
+            $bottomRightY = $topLeftY + $rect->height;
 
             $draw->rectangle(
                 $topLeftX,
@@ -58,10 +58,10 @@ class VisualisationHelper
         $draw->setStrokeDashOffset(0);
         $draw->setStrokeColor($freeStrokeColour);
         foreach ($bin->getFreeRectangles() as $rect) {
-            $topLeftX = $margin + $rect->getX();
-            $topLeftY = $margin + $bin->getBinHeight() - $rect->getY() - $rect->getHeight();
-            $bottomRightX = $topLeftX + $rect->getWidth();
-            $bottomRightY = $topLeftY + $rect->getHeight();
+            $topLeftX = $margin + $rect->xPos;
+            $topLeftY = $margin + $bin->getBinHeight() - $rect->yPos - $rect->height;
+            $bottomRightX = $topLeftX + $rect->width;
+            $bottomRightY = $topLeftY + $rect->height;
 
             $draw->rectangle(
                 $topLeftX,

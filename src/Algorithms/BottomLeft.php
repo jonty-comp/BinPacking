@@ -3,7 +3,6 @@
 namespace BinPacking\Algorithms;
 
 use BinPacking\{RectangleBinPack, Rectangle};
-use BinPacking\Helpers\RectangleFactory;
 use BinPacking\Helpers\RectangleHelper;
 
 class BottomLeft
@@ -18,30 +17,54 @@ class BottomLeft
         $bestX = RectangleHelper::MAXINT;
         $bestY = RectangleHelper::MAXINT;
 
+        $rectW = $rectangle->width;
+        $rectH = $rectangle->height;
+        $flipAllowed = $bin->isFlipAllowed();
+
         foreach ($bin->getFreeRectangles() as $freeRect) {
+            $rotate = false;
+            $freeW = $freeRect->width;
+            $freeH = $freeRect->height;
+
             // Try to place the rectangle in upright (non-flipped) orientation
-            if ($freeRect->getWidth() >= $rectangle->getWidth() && $freeRect->getHeight() >= $rectangle->getHeight()) {
-                $topSideY = $freeRect->getY() + $rectangle->getHeight();
-                if ($topSideY < $bestY || ($topSideY == $bestY && $freeRect->getX() < $bestX)) {
-                    $bestNode = RectangleFactory::fromRectangle($rectangle);
-                    $bestNode->setPosition($freeRect->getX(), $freeRect->getY());
+            if ($freeW >= $rectW && $freeH >= $rectH) {
+                $topSideY = $freeRect->yPos + $rectH;
+                if ($topSideY < $bestY || ($topSideY == $bestY && $freeRect->xPos < $bestX)) {
+                    $bestNode = [$rectW, $rectH, $freeRect->xPos, $freeRect->yPos];
                     $bestY = $topSideY;
-                    $bestX = $freeRect->getX();
+                    $bestX = $freeRect->xPos;
                 }
             }
 
-            if ($bin->isFlipAllowed() && $freeRect->getWidth() >= $rectangle->getHeight() && $freeRect->getHeight() >= $rectangle->getWidth()) {
-                $topSideY = $freeRect->getY() + $rectangle->getWidth();
-                if ($topSideY < $bestY || ($topSideY == $bestY && $freeRect->getX() < $bestX)) {
-                    $bestNode = RectangleFactory::fromRectangle($rectangle);
-                    $bestNode->setPosition($freeRect->getX(), $freeRect->getY());
+            if ($flipAllowed && $freeW >= $rectH && $freeH >= $rectW) {
+                $topSideY = $freeRect->yPos + $rectW;
+                if ($topSideY < $bestY || ($topSideY == $bestY && $freeRect->xPos < $bestX)) {
+                    $bestNode = [$rectW, $rectH, $freeRect->xPos, $freeRect->yPos];
+                    $rotate = true;
+
                     $bestY = $topSideY;
-                    $bestX = $freeRect->getX();
-                    $bestNode->rotate();
+                    $bestX = $freeRect->xPos;
                 }
             }
         }
 
-        return $bestNode;
+
+        if ($bestNode) {
+            $bestRect = clone $rectangle;
+
+            $bestRect->width = $bestNode[0];
+            $bestRect->height = $bestNode[1];
+
+            $bestRect->xPos = $bestNode[2];
+            $bestRect->yPos = $bestNode[3];
+
+            if ($rotate) {
+                $bestRect->rotate();
+            }
+
+            return $bestRect;
+        }
+
+        return null;
     }
 }

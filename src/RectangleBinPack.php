@@ -3,7 +3,6 @@
 namespace BinPacking;
 
 use BinPacking\Algorithms\{BestAreaFit, BestLongSideFit, BottomLeft, BestShortSideFit};
-use BinPacking\Helpers\RectangleFactory;
 use BinPacking\Helpers\RectangleHelper;
 
 class RectangleBinPack
@@ -13,52 +12,59 @@ class RectangleBinPack
      *
      * @var int
      */
-    private $binWidth;
+    public $binWidth;
     
     /**
      * Height of the bin to pack into
      *
      * @var int
      */
-    private $binHeight;
+    public $binHeight;
 
     /**
      * Allow 90 degree rotation or not
      *
      * @var bool
      */
-    private $allowFlip;
+    public $allowFlip;
 
     /**
      * Used rectangles array
      *
      * @var Rectangle[]
      */
-    private $usedRectangles;
+    public $usedRectangles;
     
     /**
      * Used rectangles array
      *
      * @var Rectangle[]
      */
-    private $freeRectangles;
+    public $freeRectangles;
 
     /**
      * Array of rectangles unable to pack in the bin
      *
      * @var Rectangle[]
      */
-    private $cantPack = [];
+    public $cantPack = [];
 
     /**
      * Bottom border of the bin that cannot be used
      */
-    private $bottomBorder;
+    public $bottomBorder;
 
     /**
      * Left border of thebin that cannot be used
      */
-    private $leftBorder;
+    public $leftBorder;
+
+    /**
+     * Chosen packing method
+     *
+     * @var string
+     */
+    public $method = BestAreaFit::class;
 
     /**
      * Construct the bin for packing into
@@ -67,7 +73,7 @@ class RectangleBinPack
      * @param int $height Height of the bin
      * @param boolean $flip   Allow rotation of the items to pack
      */
-    public function __construct(int $width, int $height, bool $flip = true)
+    public function __construct(int $width, int $height, bool $flip = true, $method)
     {
         $this->binWidth = $width;
         $this->binHeight = $height;
@@ -78,6 +84,27 @@ class RectangleBinPack
 
         $this->usedRectangles = [];
         $this->freeRectangles = [];
+
+        switch ($method) {
+            case 'RectBottomLeftRule':
+                $this->method = BottomLeft::class;
+                break;
+
+            case 'RectBestAreaFit':
+                $this->method = BestAreaFit::class;
+                break;
+
+            case 'RectBestLongSideFit':
+                $this->method = BestLongSideFit::class;
+                break;
+
+            case 'RectBestShortSideFit':
+                $this->method = BestShortSideFit::class;
+                break;
+
+            default:
+                throw new \InvalidArgumentException("Method {$method} not recognised.");
+        }
     }
 
     /**
@@ -188,10 +215,7 @@ class RectangleBinPack
     {
         $usedSurfaceArea = 0;
         foreach ($this->usedRectangles as $usedRect) {
-            $usedSurfaceArea += $usedRect->getWidth() * $usedRect->getHeight();
-            if (get_class($usedRect) == 'BinPacking\WindowedRectangle') {
-                $usedSurfaceArea -= $usedRect->getWindow()->getWidth() * $usedRect->getWindow()->getHeight();
-            }
+            $usedSurfaceArea += $usedRect->width * $usedRect->height;
         }
 
         return $usedSurfaceArea / ($this->binWidth * $this->binHeight);
@@ -201,37 +225,17 @@ class RectangleBinPack
      * Insert a rectangle for a space to be found
      *
      * @param Rectangle $rect
-     * @param string $method
      * @return Rectangle
      */
-    public function insert(Rectangle $rect, string $method) : ?Rectangle
+    public function insert(Rectangle $rect) : ?Rectangle
     {
         $newNode = null;
 
         $score1 = RectangleHelper::MAXINT;
         $score2 = RectangleHelper::MAXINT;
 
-        switch ($method) {
-            case 'RectBottomLeftRule':
-                $newNode = BottomLeft::findNewPosition($this, $rect, $score1, $score2);
-                break;
-
-            case 'RectBestAreaFit':
-                $newNode = BestAreaFit::findNewPosition($this, $rect, $score1, $score2);
-                break;
-
-            case 'RectBestLongSideFit':
-                $newNode = BestLongSideFit::findNewPosition($this, $rect, $score1, $score2);
-                break;
-
-            case 'RectBestShortSideFit':
-                $newNode = BestShortSideFit::findNewPosition($this, $rect, $score1, $score2);
-                break;
-
-            default:
-                throw new \InvalidArgumentException("Method {$method} not recognised.");
-        }
-
+        $newNode = $this->method::findNewPosition($this, $rect, $score1, $score2);
+        
         if (!$newNode) {
             return $newNode;
         }
@@ -245,10 +249,9 @@ class RectangleBinPack
      * Insert multiple rectangles at once (trying to find the best fit)
      *
      * @param Rectangle[] $toPack
-     * @param string $method
      * @return Rectangle[]
      */
-    public function insertMany(array $toPack, string $method) : array
+    public function insertMany(array $toPack) : array
     {
         $packed = [];
 
@@ -257,13 +260,14 @@ class RectangleBinPack
             $bestScore2 = RectangleHelper::MAXINT;
             $bestRectIndex = -1;
             $bestNode = null;
-
-            for ($i = 0; $i < count($toPack); ++$i) {
+            
+            
+            $count = count($toPack);
+            for ($i = 0; $i < $count; ++$i) {
                 $score1 = RectangleHelper::MAXINT;
                 $score2 = RectangleHelper::MAXINT;
                 $newNode = $this->scoreRect(
                     $toPack[$i],
-                    $method,
                     $score1,
                     $score2
                 );
@@ -297,7 +301,7 @@ class RectangleBinPack
      * @param Rectangle $node
      * @return void
      */
-    private function placeRect(Rectangle $node)
+    public function placeRect(Rectangle $node)
     {
         $numRectsToProcess = count($this->freeRectangles);
         for ($i = 0; $i < $numRectsToProcess; ++$i) {
@@ -319,37 +323,17 @@ class RectangleBinPack
      *
      * @param int $width
      * @param int $height
-     * @param string $method
      * @param int $score1
      * @param int $score2
      * @return Rectangle|null
      */
-    private function scoreRect(Rectangle $rect, string $method, int &$score1, int &$score2) : ?Rectangle
+    public function scoreRect(Rectangle $rect, int &$score1, int &$score2) : ?Rectangle
     {
         $score1 = RectangleHelper::MAXINT;
         $score2 = RectangleHelper::MAXINT;
         
-        switch ($method) {
-            case 'RectBottomLeftRule':
-                $newNode = BottomLeft::findNewPosition($this, $rect, $score1, $score2);
-                break;
-
-            case 'RectBestAreaFit':
-                $newNode = BestAreaFit::findNewPosition($this, $rect, $score1, $score2);
-                break;
-
-            case 'RectBestLongSideFit':
-                $newNode = BestLongSideFit::findNewPosition($this, $rect, $score1, $score2);
-                break;
-
-            case 'RectBestShortSideFit':
-                $newNode = BestShortSideFit::findNewPosition($this, $rect, $score1, $score2);
-                break;
-
-            default:
-                throw new \InvalidArgumentException("Method {$method} not recognised.");
-        }
-
+        $newNode = $this->method::findNewPosition($this, $rect, $score1, $score2);
+        
         if (!$newNode) {
             $score1 = RectangleHelper::MAXINT;
             $score2 = RectangleHelper::MAXINT;
@@ -365,63 +349,73 @@ class RectangleBinPack
      * @param Rectangle $usedNode
      * @return boolean
      */
-    private function splitFreeNode(Rectangle $freeNode, Rectangle $usedNode) : bool
+    public function splitFreeNode(Rectangle $freeNode, Rectangle $usedNode) : bool
     {
+        $usedX = $usedNode->xPos;
+        $usedY = $usedNode->yPos;
+        $usedW = $usedNode->width;
+        $usedH = $usedNode->height;
+
+        $freeX = $freeNode->xPos;
+        $freeY = $freeNode->yPos;
+        $freeW = $freeNode->width;
+        $freeH = $freeNode->height;
+
         // Test with SAT if the rectangles even intersect
-        if ($usedNode->getX() >= ($freeNode->getX() + $freeNode->getWidth())
-            || ($usedNode->getX() + $usedNode->getWidth()) <= $freeNode->getX()
-            || $usedNode->getY() >= ($freeNode->getY() + $freeNode->getHeight())
-            || ($usedNode->getY() + $usedNode->getHeight()) <= $freeNode->getY()) {
+        if ($usedX >= ($freeX + $freeW)
+            || ($usedX + $usedW) <= $freeX
+            || $usedY >= ($freeY + $freeH)
+            || ($usedY + $usedH) <= $freeY) {
             return false;
         }
 
-        if ($usedNode->getX() < ($freeNode->getX() + $freeNode->getWidth())
-            && ($usedNode->getX() + $usedNode->getWidth()) > $freeNode->getX()) {
+        if ($usedX < ($freeX + $freeW)
+            && ($usedX + $usedW) > $freeX) {
             // New node at the top side of the used node.
-            if ($usedNode->getY() > $freeNode->getY()
-                && $usedNode->getY() < ($freeNode->getY() + $freeNode->getHeight())) {
-                $newNode = RectangleFactory::fromRectangle($freeNode);
-                $newNode->setHeight($usedNode->getY() - $newNode->getY());
+            if ($usedY > $freeY
+                && $usedY < ($freeY + $freeH)) {
+                $newNode = clone $freeNode;
+                $newNode->setHeight($usedY - $newNode->yPos);
                 $this->freeRectangles[] = $newNode;
             }
 
             // New node at the bottom side of the used node.
-            if (($usedNode->getY() + $usedNode->getHeight()) < ($freeNode->getY() + $freeNode->getHeight())) {
-                $newNode = RectangleFactory::fromRectangle($freeNode);
-                $newNode->setY($usedNode->getY() + $usedNode->getHeight());
+            if (($usedY + $usedH) < ($freeY + $freeH)) {
+                $newNode = clone $freeNode;
+                $newNode->setY($usedY + $usedH);
                 $newNode->setHeight(
-                    ($freeNode->getY() + $freeNode->getHeight()) - ($usedNode->getY() + $usedNode->getHeight())
+                    ($freeY + $freeH) - ($usedY + $usedH)
                 );
                 $this->freeRectangles[] = $newNode;
             }
         }
 
-        if ($usedNode->getY() < ($freeNode->getY() + $freeNode->getHeight())
-            && ($usedNode->getY() + $usedNode->getHeight()) > $freeNode->getY()) {
+        if ($usedY < ($freeY + $freeH)
+            && ($usedY + $usedH) > $freeY) {
             // New node at the left side of the used node.
-            if ($usedNode->getX() > $freeNode->getX()
-                && $usedNode->getX() < ($freeNode->getX() + $freeNode->getWidth())) {
-                $newNode = RectangleFactory::fromRectangle($freeNode);
-                $newNode->setWidth($usedNode->getX() - $newNode->getX());
+            if ($usedX > $freeX
+                && $usedX < ($freeX + $freeW)) {
+                $newNode = clone $freeNode;
+                $newNode->setWidth($usedX - $newNode->xPos);
                 $this->freeRectangles[] = $newNode;
             }
 
             // New node at the right side of the used node.
-            if (($usedNode->getX() + $usedNode->getWidth()) < ($freeNode->getX() + $freeNode->getWidth())) {
-                $newNode = RectangleFactory::fromRectangle($freeNode);
-                $newNode->setX($usedNode->getX() + $usedNode->getWidth());
+            if (($usedX + $usedW) < ($freeX + $freeW)) {
+                $newNode = clone $freeNode;
+                $newNode->setX($usedX + $usedW);
                 $newNode->setWidth(
-                    ($freeNode->getX() + $freeNode->getWidth()) - ($usedNode->getX() + $usedNode->getWidth())
+                    ($freeX + $freeW) - ($usedX + $usedW)
                 );
                 $this->freeRectangles[] = $newNode;
             }
         }
 
         // Check if the used node has a window
-        if (get_class($usedNode) == "BinPacking\WindowedRectangle") {
-            $newNode = RectangleFactory::fromRectangle($usedNode->getWindow());
-            $newNode->setX($usedNode->getX() + $usedNode->getLeftBorder() + WindowedRectangle::INNERBORDER);
-            $newNode->setY($usedNode->getY() + $usedNode->getBottomBorder() + WindowedRectangle::INNERBORDER);
+        if ($usedNode instanceof WindowedRectangle) {
+            $newNode = clone $usedNode->getWindow();
+            $newNode->setX($usedX + $usedNode->getLeftBorder() + WindowedRectangle::INNERBORDER);
+            $newNode->setY($usedY + $usedNode->getBottomBorder() + WindowedRectangle::INNERBORDER);
 
             $this->freeRectangles[] = $newNode;
         }
@@ -434,13 +428,14 @@ class RectangleBinPack
      *
      * @return void
      */
-    private function pruneFreeList() : void
+    public function pruneFreeList() : void
     {
-        
-        for ($i = 0; $i < count($this->freeRectangles); ++$i) {
-            for ($j = $i + 1; $j < count($this->freeRectangles); ++$j) {
+        $count = count($this->freeRectangles);
+        for ($i = 0; $i < $count; ++$i) {
+            for ($j = $i + 1; $j < $count; ++$j) {
                 if (RectangleHelper::isContainedIn($this->freeRectangles[$i], $this->freeRectangles[$j])) {
                     unset($this->freeRectangles[$i]);
+                    $count--;
                     $this->freeRectangles = array_values($this->freeRectangles);
                     --$i;
                     break;
@@ -448,6 +443,7 @@ class RectangleBinPack
 
                 if (RectangleHelper::isContainedIn($this->freeRectangles[$j], $this->freeRectangles[$i])) {
                     unset($this->freeRectangles[$j]);
+                    $count--;
                     $this->freeRectangles = array_values($this->freeRectangles);
                     --$j;
                     break;

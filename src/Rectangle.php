@@ -9,28 +9,28 @@ class Rectangle
      *
      * @var int
      */
-    private $xPos;
+    public $xPos;
     
     /**
      * Y position of where this rectangle is placed (bottom left)
      *
      * @var int
      */
-    private $yPos;
+    public $yPos;
 
     /**
      * Width of the rectangle
      *
      * @var int
      */
-    protected $width;
+    public $width;
 
     /**
      * Height of the rectangle
      *
      * @var int
      */
-    protected $height;
+    public $height;
 
     /**
      * Construct the rectangle
@@ -38,12 +38,12 @@ class Rectangle
      * @param integer $width Outer width of the rectangle
      * @param integer $height Outer height of the rectangle
      */
-    public function __construct(int $width, int $height)
+    public function __construct(int $width, int $height, int $xPos = 0, int $yPos = 0)
     {
         $this->width = $width;
         $this->height = $height;
-        $this->xPos = 0;
-        $this->yPos = 0;
+        $this->xPos = $xPos;
+        $this->yPos = $yPos;
     }
 
     /**

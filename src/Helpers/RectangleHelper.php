@@ -17,8 +17,8 @@ class RectangleHelper
      */
     public static function isContainedIn(Rectangle $rectA, Rectangle $rectB) : bool
     {
-        return $rectA->getX() >= $rectB->getX() && $rectA->getY() >= $rectB->getY()
-            && $rectA->getX() + $rectA->getWidth() <= $rectB->getX() + $rectB->getWidth()
-            && $rectA->getY() + $rectA->getHeight() <= $rectB->getY() + $rectB->getHeight();
+        return $rectA->xPos >= $rectB->xPos && $rectA->yPos >= $rectB->yPos
+            && $rectA->xPos + $rectA->width <= $rectB->xPos + $rectB->width
+            && $rectA->yPos + $rectA->height <= $rectB->yPos + $rectB->height;
     }
 }
